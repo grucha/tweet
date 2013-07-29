@@ -35,7 +35,8 @@
       },
       filter: function(tweet) {                 // [function] whether or not to include a particular tweet (be sure to also set 'fetch')
         return true;
-      }
+      },
+      cached_tweets: null
       // You can attach callbacks to the following events using jQuery's standard .bind() mechanism:
       //   "loaded" -- triggered when tweets have been fetched and rendered
     }, o);
@@ -233,13 +234,24 @@
     }
 
     function load(widget) {
-      var loading = $('<p class="loading">'+s.loading_text+'</p>');
-      if (s.loading_text) $(widget).not(":has(.tweet_list)").empty().append(loading);
-      $.getJSON(build_api_url(), function(data){
-        var tweets = $.map(data.statuses || data, extract_template_data);
+      var use_tweets_json = function (data) {
+        var tweets = $.map(data, extract_template_data);
         tweets = $.grep(tweets, s.filter).sort(s.comparator).slice(0, s.count);
         $(widget).trigger("tweet:retrieved", [tweets]);
-      });
+      };
+
+      var loading = $('<p class="loading">'+s.loading_text+'</p>');
+      if (s.loading_text) $(widget).not(":has(.tweet_list)").empty().append(loading);
+
+      if (s.cached_tweets !== null) {
+        // Use preloaded tweets for speed.
+        use_tweets_json(s.cached_tweets);
+        // But use them only once.
+        // Each next time 'load' is called the tweets will be fetched.
+        s.cached_tweets = null;
+      } else {
+        $.getJSON(build_api_url(), use_tweets_json);
+      }
     }
 
     return this.each(function(i, widget){
